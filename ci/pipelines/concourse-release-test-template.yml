@@ -40,9 +40,7 @@ jobs:
     plan:
       - get: concourse-release-test.git
         trigger: true
-      - get: version
       - put: version
-        inputs: [version]
         params: { pre: rc }
 
   - name: make-me-some-pizza
