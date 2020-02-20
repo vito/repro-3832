@@ -1,0 +1,19 @@
+platform: linux
+image_resource:
+  type: docker-image
+  source:
+    repository: alpine
+inputs:
+  - name: concourse-release-test.git
+  - name: pizza.s3
+  - name: version
+outputs:
+  - name: final
+run:
+  path: /bin/ash
+  args:
+    - -c
+    - |
+      VERSION=$(cat version/version)
+      cp pizza.s3/pizza-*.txt "final/pizza-${VERSION}.txt"
+      echo "Oh boy it's here!"

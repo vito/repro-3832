@@ -1,0 +1,79 @@
+s3-params: &s3-params
+  bucket: test
+  region_name: REDACTED
+  access_key_id: ((REDACTED))
+  secret_access_key: ((REDACTED))
+
+###################################################################################################
+
+resources:
+  - name: concourse-release-test.git
+    type: git
+    source:
+      uri: https://github.com/vito/repro-3832
+      branch: master
+
+  - name: pizza.s3
+    type: s3
+    source:
+      regexp: artifacts/master/pizza-(.*).txt
+      <<: *s3-params
+
+  - name: my-couch.s3
+    type: s3
+    source:
+      regexp: final/_pizza/pizza-(.*).txt
+      <<: *s3-params
+
+  - name: version
+    type: semver
+    source:
+      driver: s3
+      initial_version: 0.1.0
+      key: _pizza/master/0.1/version
+      <<: *s3-params
+
+###################################################################################################
+
+jobs:
+  - name: bump-rc
+    plan:
+      - get: concourse-release-test.git
+        trigger: true
+      - get: version
+      - put: version
+        inputs: [version]
+        params: { pre: rc }
+
+  - name: make-me-some-pizza
+    plan:
+    - get: concourse-release-test.git
+      passed: [bump-rc]
+    - get: version
+      passed: [bump-rc]
+      trigger: true
+    - task: make-a-pizza
+      file: concourse-release-test.git/ci/tasks/pizza.yml
+      output_mapping: { pizza: make-a-pizza }
+    - put: pizza.s3
+      inputs: [make-a-pizza]
+      params: { file: make-a-pizza/pizza-*.txt }
+
+  - name: ship-it
+    plan:
+    - get: concourse-release-test.git
+      passed: [make-me-some-pizza]
+    - get: version
+      passed: [make-me-some-pizza]
+      params: { bump: final }
+    - get: pizza.s3
+      passed: [make-me-some-pizza]
+    - task: deliver-the-pizza
+      file: concourse-release-test.git/ci/tasks/delivery.yml
+      output_mapping: { final: deliver-the-pizza }
+    - put: my-couch.s3
+      inputs: [deliver-the-pizza]
+      params: { file: deliver-the-pizza/pizza-*.txt }
+    - put: version
+      inputs: [version]
+      params: { bump: patch }

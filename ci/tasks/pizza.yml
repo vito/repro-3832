@@ -1,0 +1,20 @@
+platform: linux
+image_resource:
+  type: docker-image
+  source:
+    repository: alpine
+inputs:
+  - name: concourse-release-test.git
+  - name: version
+outputs:
+  - name: pizza
+run:
+  path: /bin/ash
+  args:
+    - -c
+    - |
+      VERSION=$(cat version/version)
+      echo "Cheese" >> "pizza/pizza-${VERSION}.txt"
+      echo "Pepperoni" >> "pizza/pizza-${VERSION}.txt"
+      echo "Pineapple" >> "pizza/pizza-${VERSION}.txt"
+      echo "I like pizza."
